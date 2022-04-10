@@ -251,14 +251,6 @@ loadGLTF('./glTF/MetalRoughSpheres.gltf').then(gltf => {
     MAT3: 9,
     MAT4: 16,
   };
-  const WEBGL_COMPONENT_TYPES = {
-    5120: Int8Array,
-    5121: Uint8Array,
-    5122: Int16Array,
-    5123: Uint16Array,
-    5125: Uint32Array,
-    5126: Float32Array,
-  };
   const uploadTexture = textureIndex => {
     const textureDef = gltf.textures[textureIndex];
     const imageDef = gltf.images[textureDef.source];
@@ -386,6 +378,7 @@ loadGLTF('./glTF/MetalRoughSpheres.gltf').then(gltf => {
     const sceneDef = gltf.scenes[sceneIndex];
     for (let i = 0; i < sceneDef.nodes.length; i++) renderNode(sceneDef.nodes[i], parentMatrix);
   };
+
   let rotateZ = 0;
   const render = () => {
     gl.clear(gl.COLOR_BUFFER_BIT);
