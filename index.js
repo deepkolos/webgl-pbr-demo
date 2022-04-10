@@ -1,5 +1,5 @@
 import { loadGLTF } from './loader.js';
-import { Matrix4, normalize, Quaternion } from './math.js';
+import { isPowerOfTwo, Matrix4, normalize, Quaternion } from './math.js';
 
 /**
  * 创建canvas
@@ -254,6 +254,13 @@ loadGLTF('./glTF/MetalRoughSpheres.gltf').then(gltf => {
   const uploadTexture = textureIndex => {
     const textureDef = gltf.textures[textureIndex];
     const imageDef = gltf.images[textureDef.source];
+    const samplerDef = gltf.samplers[textureDef.sampler];
+    const {
+      magFilter = gl.NEAREST,
+      minFilter = gl.NEAREST,
+      wrapS = gl.REPEAT,
+      wrapT = gl.REPEAT,
+    } = samplerDef;
 
     if (glTextureCache.has(textureIndex)) {
       const glTexture = glTextureCache.get(textureIndex);
@@ -266,10 +273,13 @@ loadGLTF('./glTF/MetalRoughSpheres.gltf').then(gltf => {
 
     gl.bindTexture(gl.TEXTURE_2D, glTexture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, imageDef.el);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, minFilter);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, magFilter);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrapS);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrapT);
+
+    // TODO texture不是2的幂次方在webgl1的报错
+    gl.generateMipmap(gl.TEXTURE_2D);
 
     return glTexture;
   };
@@ -382,7 +392,7 @@ loadGLTF('./glTF/MetalRoughSpheres.gltf').then(gltf => {
   let rotateZ = 0;
   const render = () => {
     gl.clear(gl.COLOR_BUFFER_BIT);
-    // rotateZ += 0.002;
+    rotateZ += 0.002;
     modelQuaternion.setFromEuler([rotateZ, rotateZ, rotateZ]);
     modelMatrix.compose(modelPosition, modelQuaternion, modelScale);
     renderScene(gltf.scene, modelMatrix);
