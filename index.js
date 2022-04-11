@@ -51,7 +51,7 @@ loadGLTF('./glTF/MetalRoughSpheres.gltf').then(gltf => {
   let rotateZ = 0;
   const render = () => {
     gl.clear(gl.COLOR_BUFFER_BIT);
-    rotateZ += 0.002;
+    // rotateZ += 0.002;
     modelQuaternion.setFromEuler([rotateZ, rotateZ, rotateZ]);
     modelMatrix.compose(modelPosition, modelQuaternion, modelScale);
     glTFRenderer.renderScene(gltf.scene, modelMatrix);

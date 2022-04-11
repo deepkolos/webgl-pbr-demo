@@ -6,5 +6,5 @@ shader 代码主要来源 games104 Pilot `mesh.frag`
 
 ## TODO
 
-- debug最左侧无高光
+- debug最左侧无高光 done (D_GGX roughness -> rroughness)
 - IBL

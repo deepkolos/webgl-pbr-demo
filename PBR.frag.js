@@ -59,7 +59,7 @@ vec3 BRDF(vec3 L, vec3 V, vec3 N, vec3 F0, float metallic, float roughness, vec3
 
 	float rroughness = max(0.05, roughness);
 	// D = Normal distribution (Distribution of the microfacets)
-	float D = D_GGX(dotNH, roughness);
+	float D = D_GGX(dotNH, rroughness);
 	// G = Geometric shadowing term (Microfacets shadowing)
 	float G = G_SchlicksmithGGX(dotNL, dotNV, rroughness);
 	// F = Fresnel factor (Reflectance depending on angle of incidence)
@@ -107,5 +107,12 @@ void main() {
 
   // gl_FragColor = vec4(La + Lo, 1);
   gl_FragColor = LinearTosRGB(vec4(La + Lo, 1));
+	// gl_FragColor = vec4(metallic, metallic, metallic, 1);
+	// gl_FragColor = vec4(roughness, roughness, roughness, 1);
+	// if (roughness == 0.0) {
+	// 	gl_FragColor = vec4(roughness, roughness, roughness, 1);
+	// } else {
+  // 	gl_FragColor = LinearTosRGB(vec4(La + Lo, 1));
+	// }
 }
 `;
