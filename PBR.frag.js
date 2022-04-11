@@ -57,7 +57,11 @@ vec3 BRDF(vec3 L, vec3 V, vec3 N, vec3 F0, float metallic, float roughness, vec3
 
 	vec3 color = vec3(0.0);
 
-	float rroughness = max(0.05, roughness);
+	/**
+	 * THREEJS lights_physical_fragment.glsl.js
+	 * 0.0525 corresponds to the base mip of a 256 cubemap.
+	 */
+	float rroughness = max(0.0525, roughness);
 	// D = Normal distribution (Distribution of the microfacets)
 	float D = D_GGX(dotNH, rroughness);
 	// G = Geometric shadowing term (Microfacets shadowing)
