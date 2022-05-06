@@ -24,7 +24,7 @@ export class GLTFRenderer {
     this.gltf = gltf;
     this.gl = gl;
     this.compileShader();
-    this.initUniformLocation();
+    this.initShaderLocation();
     gl.enable(gl.DEPTH_TEST);
     gl.enable(gl.CULL_FACE);
   }
@@ -67,7 +67,7 @@ export class GLTFRenderer {
     this.glProg = glProg;
   }
 
-  initUniformLocation() {
+  initShaderLocation() {
     const { gl, glProg } = this;
     this.positionLoc = gl.getAttribLocation(glProg, 'position');
     this.normalLoc = gl.getAttribLocation(glProg, 'normal');
@@ -267,7 +267,8 @@ export class GLTFRenderer {
         this.renderNode(nodeDef.children[i], worldMatrix);
   }
   renderScene(sceneIndex, parentMatrix) {
-    const { gltf, gl } = this;
+    const { gltf, gl, glProg } = this;
+    gl.useProgram(glProg);
     const sceneDef = gltf.scenes[sceneIndex];
     for (let i = 0; i < sceneDef.nodes.length; i++)
       this.renderNode(sceneDef.nodes[i], parentMatrix);
