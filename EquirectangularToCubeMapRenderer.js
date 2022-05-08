@@ -152,7 +152,7 @@ export class EquirectangularToCubeMapRenderer {
 }
 
 // prettier-ignore
-const cubeVertices = new Float32Array([
+export const cubeVertices = new Float32Array([
   // position(3)    normal(3)        uv(2)
   // back face
  -1.0, -1.0, -1.0,  0.0,  0.0, -1.0, 0.0, 0.0, // bottom-left
