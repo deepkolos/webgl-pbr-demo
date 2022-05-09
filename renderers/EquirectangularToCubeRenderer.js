@@ -1,105 +1,23 @@
-import { Matrix4 } from './math.js';
-
-const vertSource = /* glsl */ `
-attribute vec3 position;
-
-uniform mat4 projection;
-uniform mat4 modelToView;
-
-varying vec3 v_localPosition;
-
-void main() {
-  v_localPosition = position;  
-  gl_Position =  projection * modelToView * vec4(position, 1.0);
-}`;
-
-const fragSource = /* glsl */ `
-precision mediump float;
-
-uniform sampler2D equirectangularMap;
-
-varying vec3 v_localPosition;
-
-const vec2 invAtan = vec2(0.1591, 0.3183);
-
-vec2 SampleSphericalMap(vec3 v) {
-    vec2 uv = vec2(atan(v.z, v.x), asin(v.y));
-    uv *= invAtan;
-    uv += 0.5;
-    return uv;
-}
-
-void main() {       
-    vec2 uv = SampleSphericalMap(normalize(v_localPosition)); // make sure to normalize localPos
-    vec3 color = texture2D(equirectangularMap, uv).rgb;
-
-    gl_FragColor = vec4(color, 1.0);
-}`;
+import { GLContext } from '../GLContext.js';
+import { GLShader } from '../GLShader.js';
+import { GLTextures } from '../GLTextures.js';
+import { Matrix4 } from '../math.js';
+import { fragSource } from '../shaders/EquirectanglurToCube.frag.js';
+import { vertSource } from '../shaders/EquirectanglurToCube.vert.js';
 
 export class EquirectangularToCubeMapRenderer {
   /**
-   * @param {*} texture
-   * @param {WebGLRenderingContext} gl
+   * @param {*} HDRTexture
    */
-  constructor(texture, gl) {
-    this.gl = gl;
-    this.texture = texture;
-    this.compileShader();
-    this.initShaderLocation();
+  constructor(HDRTexture) {
+    this.gl = GLContext.gl;
+    this.HDRTexture = HDRTexture;
+    this.cubeShader = new GLShader(vertSource, fragSource);
     this.initCube();
-    gl.enable(gl.DEPTH_TEST);
-    gl.enable(gl.CULL_FACE);
-  }
-
-  compileShader() {
-    const { gl } = this;
-    const glProg = gl.createProgram();
-    const glVert = gl.createShader(gl.VERTEX_SHADER);
-    const glFrag = gl.createShader(gl.FRAGMENT_SHADER);
-    gl.shaderSource(glVert, vertSource);
-    gl.shaderSource(glFrag, fragSource);
-    gl.compileShader(glVert);
-    gl.compileShader(glFrag);
-    if (!gl.getShaderParameter(glVert, gl.COMPILE_STATUS))
-      console.error(
-        gl.getShaderInfoLog(glVert),
-        vertSource
-          .split('\n')
-          .map((v, k) => `${k}:${v}`)
-          .join('\n'),
-      );
-    if (!gl.getShaderParameter(glFrag, gl.COMPILE_STATUS))
-      console.error(
-        gl.getShaderInfoLog(glFrag),
-        fragSource
-          .split('\n')
-          .map((v, k) => `${k}:${v}`)
-          .join('\n'),
-      );
-    gl.attachShader(glProg, glVert);
-    gl.attachShader(glProg, glFrag);
-    gl.linkProgram(glProg);
-    if (!gl.getProgramParameter(glProg, gl.LINK_STATUS))
-      console.error(gl.getProgramInfoLog(glProg));
-    gl.useProgram(glProg);
-
-    gl.deleteShader(glVert);
-    gl.deleteShader(glFrag);
-
-    this.glProg = glProg;
-  }
-
-  initShaderLocation() {
-    const { gl, glProg } = this;
-    this.positionLoc = gl.getAttribLocation(glProg, 'position');
-
-    this.equirectangularMapLoc = gl.getUniformLocation(glProg, 'equirectangularMap');
-    this.modelToViewLoc = gl.getUniformLocation(glProg, 'modelToView');
-    this.projectionLoc = gl.getUniformLocation(glProg, 'projection');
   }
 
   initCube() {
-    const { gl, texture } = this;
+    const { gl, HDRTexture } = this;
     const glCubeBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, glCubeBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, cubeVertices.buffer, gl.STATIC_DRAW);
@@ -115,38 +33,39 @@ export class EquirectangularToCubeMapRenderer {
       gl.TEXTURE_2D,
       0,
       gl.RGBA,
-      texture.width,
-      texture.height,
+      HDRTexture.width,
+      HDRTexture.height,
       0,
       gl.RGBA,
       OBS_HALF_FLOAT_EXT.HALF_FLOAT_OES,
-      texture.data,
+      HDRTexture.data,
     );
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
     this.glCubeTexture = glCubeTexture;
   }
 
   setProjection(fov, aspect, near, far) {
     const projection = new Matrix4();
     projection.perspective(fov, aspect, near, far);
-    this.gl.uniformMatrix4fv(this.projectionLoc, false, projection);
+    this.cubeShader.setUniform('projection', projection);
   }
 
-  renderCube(modelView) {
-    const { gl, glProg, glCubeTexture } = this;
-    gl.useProgram(glProg);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.glCubeBuffer);
-    gl.enableVertexAttribArray(this.positionLoc);
-    gl.vertexAttribPointer(this.positionLoc, 3, gl.FLOAT, false, 8 * 4, 0);
-
-    gl.uniformMatrix4fv(this.modelToViewLoc, false, modelView);
-
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, glCubeTexture);
-    gl.uniform1i(this.equirectangularMapLoc, 0);
-
+  renderCube(modelToView) {
+    const { gl, glCubeTexture, cubeShader, glCubeBuffer } = this;
+    GLTextures.reset();
+    cubeShader.use();
+    cubeShader.setAttribute('position', {
+      size: 3,
+      type: gl.FLOAT,
+      normalized: false,
+      stride: 8 * 4,
+      offset: 0,
+      buffer: glCubeBuffer,
+    });
+    cubeShader.setUniform('modelToView', modelToView);
+    cubeShader.setUniform('equirectangularMap', glCubeTexture);
     gl.drawArrays(gl.TRIANGLES, 0, 36);
   }
 }

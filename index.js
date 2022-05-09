@@ -1,9 +1,11 @@
-import { BackgroundRenderer } from './BackgroundRenderer.js';
-import { EquirectangularToCubeMapRenderer } from './EquirectangularToCubeMapRenderer.js';
-import { GLTFRenderer } from './glTFRenderer.js';
+import { BackgroundRenderer } from './renderers/SkyBoxRenderer.js';
+import { EquirectangularToCubeMapRenderer } from './renderers/EquirectangularToCubeRenderer.js';
+import { GLTFRenderer } from './renderers/glTFRenderer.js';
 import { loadGLTF } from './loaders/glTFLoader.js';
 import { RGBELoader } from './loaders/RGBELoader.js';
 import { Matrix4, normalize, Quaternion, toRad } from './math.js';
+import { GLContext } from './GLContext.js';
+import { GLTextures } from './GLTextures.js';
 
 /**
  * 创建canvas
@@ -20,6 +22,9 @@ const directionalLightIntensity = 5;
 const directionalLightDirection = normalize([1, 5, 8]);
 const metallicFactor = 1;
 const roughnessFactor = 1;
+
+GLContext.init(gl);
+GLTextures.init(gl);
 
 /**
  * 加载gltf
@@ -120,7 +125,9 @@ Promise.all([
   bgRenderer.setProjection(toRad(60), innerWidth / innerHeight, 1, 100);
 
   let rotateZ = 0;
-  gl.depthFunc(gl.LEQUAL);  
+  // gl.depthFunc(gl.LEQUAL);
+  gl.enable(gl.DEPTH_TEST);
+  gl.enable(gl.CULL_FACE);
   const render = () => {
     gl.clear(gl.COLOR_BUFFER_BIT);
     rotateZ += 0.002;

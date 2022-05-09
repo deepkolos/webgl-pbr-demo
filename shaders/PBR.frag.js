@@ -108,15 +108,6 @@ void main() {
   vec3 En = directionalLightColor * directionalLightIntensity * NoL;
   Lo = BRDF(L, V, N, F0, metallic, roughness, baseColor) * En;
 
-
-  // gl_FragColor = vec4(La + Lo, 1);
   gl_FragColor = LinearTosRGB(vec4(La + Lo, 1));
-	// gl_FragColor = vec4(metallic, metallic, metallic, 1);
-	// gl_FragColor = vec4(roughness, roughness, roughness, 1);
-	// if (roughness == 0.0) {
-	// 	gl_FragColor = vec4(roughness, roughness, roughness, 1);
-	// } else {
-  // 	gl_FragColor = LinearTosRGB(vec4(La + Lo, 1));
-	// }
 }
 `;

@@ -1,6 +1,9 @@
-import { Matrix4 } from './math.js';
-import { vertSource } from './PBR.vert.js';
-import { fragSource } from './PBR.frag.js';
+import { Matrix4 } from '../math.js';
+import { vertSource } from '../shaders/PBR.vert.js';
+import { fragSource } from '../shaders/PBR.frag.js';
+import { GLContext } from '../GLContext.js';
+import { GLShader } from '../GLShader.js';
+import { GLTextures } from '../GLTextures.js';
 
 const WEBGL_TYPE_SIZES = {
   SCALAR: 1,
@@ -18,92 +21,42 @@ export class GLTFRenderer {
 
   /**
    * @param {*} gltf
-   * @param {WebGLRenderingContext} gl
    */
-  constructor(gltf, gl) {
+  constructor(gltf) {
     this.gltf = gltf;
-    this.gl = gl;
-    this.compileShader();
-    this.initShaderLocation();
-    gl.enable(gl.DEPTH_TEST);
-    gl.enable(gl.CULL_FACE);
-  }
-
-  compileShader() {
-    const { gl } = this;
-    const glProg = gl.createProgram();
-    const glVert = gl.createShader(gl.VERTEX_SHADER);
-    const glFrag = gl.createShader(gl.FRAGMENT_SHADER);
-    gl.shaderSource(glVert, vertSource);
-    gl.shaderSource(glFrag, fragSource);
-    gl.compileShader(glVert);
-    gl.compileShader(glFrag);
-    if (!gl.getShaderParameter(glVert, gl.COMPILE_STATUS))
-      console.error(
-        gl.getShaderInfoLog(glVert),
-        vertSource
-          .split('\n')
-          .map((v, k) => `${k}:${v}`)
-          .join('\n'),
-      );
-    if (!gl.getShaderParameter(glFrag, gl.COMPILE_STATUS))
-      console.error(
-        gl.getShaderInfoLog(glFrag),
-        fragSource
-          .split('\n')
-          .map((v, k) => `${k}:${v}`)
-          .join('\n'),
-      );
-    gl.attachShader(glProg, glVert);
-    gl.attachShader(glProg, glFrag);
-    gl.linkProgram(glProg);
-    if (!gl.getProgramParameter(glProg, gl.LINK_STATUS))
-      console.error(gl.getProgramInfoLog(glProg));
-    gl.useProgram(glProg);
-
-    gl.deleteShader(glVert);
-    gl.deleteShader(glFrag);
-
-    this.glProg = glProg;
-  }
-
-  initShaderLocation() {
-    const { gl, glProg } = this;
-    this.positionLoc = gl.getAttribLocation(glProg, 'position');
-    this.normalLoc = gl.getAttribLocation(glProg, 'normal');
-    this.uvLoc = gl.getAttribLocation(glProg, 'uv');
-
-    this.baseColorTextureLoc = gl.getUniformLocation(glProg, 'baseColorTexture');
-    this.metallicRoughnessTextureLoc = gl.getUniformLocation(glProg, 'metallicRoughnessTexture');
-    this.metallicFactorLoc = gl.getUniformLocation(glProg, 'metallicFactor');
-    this.roughnessFactorLoc = gl.getUniformLocation(glProg, 'roughnessFactor');
-    this.ambientLightColorLoc = gl.getUniformLocation(glProg, 'ambientLightColor');
-    this.ambientLightIntensityLoc = gl.getUniformLocation(glProg, 'ambientLightIntensity');
-    this.directionalLightColorLoc = gl.getUniformLocation(glProg, 'directionalLightColor');
-    this.directionalLightIntensityLoc = gl.getUniformLocation(glProg, 'directionalLightIntensity');
-    this.directionalLightDirectionLoc = gl.getUniformLocation(glProg, 'directionalLightDirection');
-    this.cameraWorldPositionLoc = gl.getUniformLocation(glProg, 'cameraWorldPosition');
-    this.modelToWorldLoc = gl.getUniformLocation(glProg, 'modelToWorld');
-    this.modelToViewLoc = gl.getUniformLocation(glProg, 'modelToView');
-    this.projectionLoc = gl.getUniformLocation(glProg, 'projection');
+    this.gl = GLContext.gl;
+    this.PBRShader = new GLShader(vertSource, fragSource);
   }
 
   setProjection(fov, aspect, near, far) {
     const projection = new Matrix4();
     projection.perspective(fov, aspect, near, far);
-    this.gl.uniformMatrix4fv(this.projectionLoc, false, projection);
+    this.PBRShader.setUniform('projection', projection);
   }
 
   setAmbientLight(ambientLightColor, ambientLightIntensity) {
-    const { gl, ambientLightColorLoc, ambientLightIntensityLoc } = this;
-    gl.uniform3fv(ambientLightColorLoc, ambientLightColor);
-    gl.uniform1f(ambientLightIntensityLoc, ambientLightIntensity);
+    this.PBRShader.setUniform('ambientLightColor', ambientLightColor);
+    this.PBRShader.setUniform('ambientLightIntensity', ambientLightIntensity);
   }
 
   setDirectionalLight(directionalLightColor, directionalLightDirection, directionalLightIntensity) {
-    this.gl.uniform3fv(this.directionalLightColorLoc, directionalLightColor);
-    this.gl.uniform3fv(this.directionalLightDirectionLoc, directionalLightDirection);
-    this.gl.uniform1f(this.directionalLightIntensityLoc, directionalLightIntensity);
+    this.PBRShader.setUniform('directionalLightIntensity', directionalLightIntensity);
+    this.PBRShader.setUniform('directionalLightDirection', directionalLightDirection);
+    this.PBRShader.setUniform('directionalLightColor', directionalLightColor);
+  }
+
+  setMetallicRoughness(metallicFactor, roughnessFactor) {
+    this.PBRShader.setUniform('roughnessFactor', roughnessFactor);
+    this.PBRShader.setUniform('metallicFactor', metallicFactor);
+  }
+
+  /**
+   * @param {Matrix4} matrix
+   */
+  setCameraMatrix(matrix) {
+    this.cameraWorldMatrixInvert = new Matrix4().copyFrom(matrix).invert();
+    const cameraWorldPosition = [matrix[12], matrix[13], matrix[14]];
+    this.PBRShader.setUniform('cameraWorldPosition', cameraWorldPosition);
   }
 
   setViewport(w, h) {
@@ -113,21 +66,7 @@ export class GLTFRenderer {
     gl.viewport(0, 0, w, h);
   }
 
-  setMetallicRoughness(metallicFactor, roughnessFactor) {
-    this.gl.uniform1f(this.metallicFactorLoc, metallicFactor);
-    this.gl.uniform1f(this.roughnessFactorLoc, roughnessFactor);
-  }
-
-  /**
-   * @param {Matrix4} matrix
-   */
-  setCameraMatrix(matrix) {
-    this.cameraWorldMatrixInvert = new Matrix4().copyFrom(matrix).invert();
-    const cameraWorldPosition = [matrix[12], matrix[13], matrix[14]];
-    this.gl.uniform3fv(this.cameraWorldPositionLoc, cameraWorldPosition);
-  }
-
-  uploadTexture(textureIndex) {
+  uploadTexture(textureIndex, uniformName) {
     const { gltf, gl, glTextureCache } = this;
     const textureDef = gltf.textures[textureIndex];
     const imageDef = gltf.images[textureDef.source];
@@ -141,7 +80,7 @@ export class GLTFRenderer {
 
     if (glTextureCache.has(textureIndex)) {
       const glTexture = glTextureCache.get(textureIndex);
-      gl.bindTexture(gl.TEXTURE_2D, glTexture);
+      // this.PBRShader.setUniform(uniformName, glTexture);
       return glTexture;
     }
 
@@ -157,6 +96,8 @@ export class GLTFRenderer {
 
     // TODO texture不是2的幂次方在webgl1的报错
     gl.generateMipmap(gl.TEXTURE_2D);
+
+    // this.PBRShader.setUniform(uniformName, glTexture);
 
     return glTexture;
   }
@@ -185,8 +126,8 @@ export class GLTFRenderer {
 
     return glBuffer;
   }
-  uploadAttribute(accessorIndex, attributeLocation) {
-    const { gltf, gl } = this;
+  uploadAttribute(accessorIndex, attributeName) {
+    const { gltf } = this;
     const accessorDef = gltf.accessors[accessorIndex];
     const itemSize = WEBGL_TYPE_SIZES[accessorDef.type];
     const byteStride =
@@ -194,49 +135,51 @@ export class GLTFRenderer {
         ? gltf.bufferViews[accessorDef.bufferView].byteStride
         : undefined;
 
-    this.uploadBuffer(accessorDef.bufferView);
+    const glBuffer = this.uploadBuffer(accessorDef.bufferView);
 
-    gl.enableVertexAttribArray(attributeLocation);
-    gl.vertexAttribPointer(
-      attributeLocation,
-      itemSize,
-      accessorDef.componentType,
-      !!accessorDef.normalized,
-      byteStride,
-      accessorDef.byteOffset,
-    );
+    this.PBRShader.setAttribute(attributeName, {
+      size: itemSize,
+      type: accessorDef.componentType,
+      normalized: !!accessorDef.normalized,
+      stride: byteStride,
+      offset: accessorDef.byteOffset,
+      buffer: glBuffer,
+    });
   }
   renderMesh(meshIndex, meshWorldMatrix) {
-    const { gltf, gl, modelToViewLoc, modelToWorldLoc, positionLoc, uvLoc, normalLoc } = this;
+    const { gltf, gl } = this;
     const meshDef = gltf.meshes[meshIndex];
 
     const modelView = new Matrix4();
     modelView.multiplyMatrices(this.cameraWorldMatrixInvert, meshWorldMatrix);
-    gl.uniformMatrix4fv(modelToViewLoc, false, modelView);
-    gl.uniformMatrix4fv(modelToWorldLoc, false, meshWorldMatrix);
+    this.PBRShader.setUniform('modelToView', modelView);
+    this.PBRShader.setUniform('modelToWorld', meshWorldMatrix);
 
     for (let i = 0; i < meshDef.primitives.length; i++) {
       const primitiveDef = meshDef.primitives[i];
       const indciesAccessorDef = gltf.accessors[primitiveDef.indices];
       this.uploadBuffer(indciesAccessorDef.bufferView);
-      this.uploadAttribute(primitiveDef.attributes['POSITION'], positionLoc);
-      this.uploadAttribute(primitiveDef.attributes['TEXCOORD_0'], uvLoc);
-      this.uploadAttribute(primitiveDef.attributes['NORMAL'], normalLoc);
+      this.uploadAttribute(primitiveDef.attributes['POSITION'], 'position');
+      this.uploadAttribute(primitiveDef.attributes['TEXCOORD_0'], 'uv');
+      this.uploadAttribute(primitiveDef.attributes['NORMAL'], 'normal');
       const materialDef = gltf.materials[primitiveDef.material];
 
+      GLTextures.reset();
       const baseColorTexture = this.uploadTexture(
         materialDef.pbrMetallicRoughness.baseColorTexture.index,
+        'baseColorTexture',
       );
       const metallicRoughnessTexture = this.uploadTexture(
         materialDef.pbrMetallicRoughness.metallicRoughnessTexture.index,
+        'metallicRoughnessTexture',
       );
 
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, baseColorTexture);
-      gl.uniform1i(this.baseColorTextureLoc, 0);
+      gl.uniform1i(this.PBRShader.uniformInfo.baseColorTexture.location, 0);
       gl.activeTexture(gl.TEXTURE1);
       gl.bindTexture(gl.TEXTURE_2D, metallicRoughnessTexture);
-      gl.uniform1i(this.metallicRoughnessTextureLoc, 1);
+      gl.uniform1i(this.PBRShader.uniformInfo.metallicRoughnessTexture.location, 1);
 
       gl.drawElements(
         primitiveDef.mode,
@@ -247,7 +190,7 @@ export class GLTFRenderer {
     }
   }
   renderNode(nodeIndex, parentMatrix) {
-    const { gltf, gl } = this;
+    const { gltf } = this;
     const nodeDef = gltf.nodes[nodeIndex];
     const localMatrix = new Matrix4();
     const worldMatrix = new Matrix4();
@@ -267,8 +210,8 @@ export class GLTFRenderer {
         this.renderNode(nodeDef.children[i], worldMatrix);
   }
   renderScene(sceneIndex, parentMatrix) {
-    const { gltf, gl, glProg } = this;
-    gl.useProgram(glProg);
+    const { gltf } = this;
+    this.PBRShader.use();
     const sceneDef = gltf.scenes[sceneIndex];
     for (let i = 0; i < sceneDef.nodes.length; i++)
       this.renderNode(sceneDef.nodes[i], parentMatrix);
