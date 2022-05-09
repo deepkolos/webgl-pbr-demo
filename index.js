@@ -61,12 +61,12 @@ Promise.all([
 
   const cubeTexture = gl.createTexture();
 
-  {
+  function renderFBO() {
     const CubeRenderer = new EquirectangularToCubeMapRenderer(texture, gl);
-    CubeRenderer.setProjection(toRad(90), 1, 0.9, 10);
+    CubeRenderer.setProjection(toRad(90), 1, 0.1, 10);
 
     const cubeMatrix = new Matrix4();
-    const cubePosition = [0, 0, -2];
+    const cubePosition = [0, 0, 0];
     const cubeScale = [1, 1, 1];
     const cubeQuaternion = new Quaternion();
     cubeMatrix.compose(cubePosition, cubeQuaternion, cubeScale);
@@ -96,12 +96,12 @@ Promise.all([
     gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
     [
-      [0, toRad(-90), 0], // 右
-      [0, toRad(90), 0], // 左
-      [toRad(-90), 0, 0], // 上
-      [toRad(90), 0, 0], // 下
-      [0, 0, 0], // 近
-      [0, toRad(180), 0], // 远
+      [toRad(180), toRad(90), 0], // 右
+      [toRad(180), toRad(-90), 0], // 左
+      [toRad(-90), toRad(180), 0], // 上
+      [toRad(90), toRad(180), 0], // 下
+      [0, 0, toRad(180)], // 近
+      [0, toRad(180), toRad(180)], // 远
     ].forEach((euler, i) => {
       cubeQuaternion.setFromEuler(euler);
       cubeMatrix.compose(cubePosition, cubeQuaternion, cubeScale);
@@ -121,31 +121,27 @@ Promise.all([
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }
 
-  const bgRenderer = new BackgroundRenderer(cubeTexture, gl);
-  bgRenderer.setProjection(toRad(60), innerWidth / innerHeight, 1, 100);
+  const skyboxRenderer = new BackgroundRenderer(cubeTexture, gl);
+  skyboxRenderer.setProjection(toRad(60), innerWidth / innerHeight, 1, 100);
 
   let rotateZ = 0;
-  // gl.depthFunc(gl.LEQUAL);
+
   gl.enable(gl.DEPTH_TEST);
-  gl.enable(gl.CULL_FACE);
+  gl.depthFunc(gl.LEQUAL);
+  renderFBO();
+
   const render = () => {
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    rotateZ += 0.002;
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    rotateZ += 0.004;
+
     modelQuaternion.setFromEuler([rotateZ, rotateZ, rotateZ]);
     modelMatrix.compose(modelPosition, modelQuaternion, modelScale);
     glTFRenderer.renderScene(gltf.scene, modelMatrix);
-    // gl.disable(gl.CULL_FACE);
-    // gl.disable(gl.DEPTH_TEST);
-    bgRenderer.renderCube(modelMatrix);
-    // gl.enable(gl.CULL_FACE);
-    // gl.enable(gl.DEPTH_TEST);
+
+    skyboxRenderer.renderCube(modelMatrix);
 
     requestAnimationFrame(render);
   };
 
   render();
 });
-
-/**
- * 加载HDR
- */
