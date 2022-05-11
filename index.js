@@ -125,6 +125,7 @@ Promise.all([
   skyboxRenderer.setProjection(toRad(60), innerWidth / innerHeight, 1, 100);
 
   let rotateZ = 0;
+  let startTime = performance.now();
 
   gl.enable(gl.DEPTH_TEST);
   gl.depthFunc(gl.LEQUAL);
@@ -140,7 +141,7 @@ Promise.all([
 
     skyboxRenderer.renderCube(modelMatrix);
 
-    requestAnimationFrame(render);
+    if (performance.now() - startTime < 3000) requestAnimationFrame(render);
   };
 
   render();
