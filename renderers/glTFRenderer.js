@@ -4,6 +4,7 @@ import { fragSource } from '../shaders/PBR.frag.js';
 import { GLContext } from '../GLContext.js';
 import { GLShader } from '../GLShader.js';
 import { GLTextures } from '../GLTextures.js';
+import { GLStates } from '../GLStates.js';
 
 const WEBGL_TYPE_SIZES = {
   SCALAR: 1,
@@ -28,28 +29,12 @@ export class GLTFRenderer {
     this.PBRShader = new GLShader(vertSource, fragSource);
   }
 
+  // 相机提供
   setProjection(fov, aspect, near, far) {
     const projection = new Matrix4();
     projection.perspective(fov, aspect, near, far);
     this.PBRShader.setUniform('projection', projection);
   }
-
-  setAmbientLight(ambientLightColor, ambientLightIntensity) {
-    this.PBRShader.setUniform('ambientLightColor', ambientLightColor);
-    this.PBRShader.setUniform('ambientLightIntensity', ambientLightIntensity);
-  }
-
-  setDirectionalLight(directionalLightColor, directionalLightDirection, directionalLightIntensity) {
-    this.PBRShader.setUniform('directionalLightIntensity', directionalLightIntensity);
-    this.PBRShader.setUniform('directionalLightDirection', directionalLightDirection);
-    this.PBRShader.setUniform('directionalLightColor', directionalLightColor);
-  }
-
-  setMetallicRoughness(metallicFactor, roughnessFactor) {
-    this.PBRShader.setUniform('roughnessFactor', roughnessFactor);
-    this.PBRShader.setUniform('metallicFactor', metallicFactor);
-  }
-
   /**
    * @param {Matrix4} matrix
    */
@@ -59,11 +44,21 @@ export class GLTFRenderer {
     this.PBRShader.setUniform('cameraWorldPosition', cameraWorldPosition);
   }
 
-  setViewport(w, h) {
-    const { gl } = this;
-    gl.canvas.width = w;
-    gl.canvas.height = h;
-    gl.viewport(0, 0, w, h);
+  // 光照节点提供
+  setAmbientLight(ambientLightColor, ambientLightIntensity) {
+    this.PBRShader.setUniform('ambientLightColor', ambientLightColor);
+    this.PBRShader.setUniform('ambientLightIntensity', ambientLightIntensity);
+  }
+  setDirectionalLight(directionalLightColor, directionalLightDirection, directionalLightIntensity) {
+    this.PBRShader.setUniform('directionalLightIntensity', directionalLightIntensity);
+    this.PBRShader.setUniform('directionalLightDirection', directionalLightDirection);
+    this.PBRShader.setUniform('directionalLightColor', directionalLightColor);
+  }
+
+  // 材质提供
+  setMetallicRoughness(metallicFactor, roughnessFactor) {
+    this.PBRShader.setUniform('roughnessFactor', roughnessFactor);
+    this.PBRShader.setUniform('metallicFactor', metallicFactor);
   }
 
   uploadTexture(textureIndex, uniformName) {
@@ -80,7 +75,7 @@ export class GLTFRenderer {
 
     if (glTextureCache.has(textureIndex)) {
       const glTexture = glTextureCache.get(textureIndex);
-      // this.PBRShader.setUniform(uniformName, glTexture);
+      this.PBRShader.setUniform(uniformName, glTexture);
       return glTexture;
     }
 
@@ -97,7 +92,7 @@ export class GLTFRenderer {
     // TODO texture不是2的幂次方在webgl1的报错
     gl.generateMipmap(gl.TEXTURE_2D);
 
-    // this.PBRShader.setUniform(uniformName, glTexture);
+    this.PBRShader.setUniform(uniformName, glTexture);
 
     return glTexture;
   }
@@ -165,21 +160,14 @@ export class GLTFRenderer {
       const materialDef = gltf.materials[primitiveDef.material];
 
       GLTextures.reset();
-      const baseColorTexture = this.uploadTexture(
+      this.uploadTexture(
         materialDef.pbrMetallicRoughness.baseColorTexture.index,
         'baseColorTexture',
       );
-      const metallicRoughnessTexture = this.uploadTexture(
+      this.uploadTexture(
         materialDef.pbrMetallicRoughness.metallicRoughnessTexture.index,
         'metallicRoughnessTexture',
       );
-
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, baseColorTexture);
-      gl.uniform1i(this.PBRShader.uniformInfo.baseColorTexture.location, 0);
-      gl.activeTexture(gl.TEXTURE1);
-      gl.bindTexture(gl.TEXTURE_2D, metallicRoughnessTexture);
-      gl.uniform1i(this.PBRShader.uniformInfo.metallicRoughnessTexture.location, 1);
 
       gl.drawElements(
         primitiveDef.mode,

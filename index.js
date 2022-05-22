@@ -5,7 +5,6 @@ import { loadGLTF } from './loaders/glTFLoader.js';
 import { RGBELoader } from './loaders/RGBELoader.js';
 import { Matrix4, normalize, Quaternion, toRad } from './math.js';
 import { GLContext } from './GLContext.js';
-import { GLTextures } from './GLTextures.js';
 
 /**
  * 创建canvas
@@ -24,7 +23,6 @@ const metallicFactor = 1;
 const roughnessFactor = 1;
 
 GLContext.init(gl);
-GLTextures.init(gl);
 
 /**
  * 加载gltf
@@ -32,11 +30,17 @@ GLTextures.init(gl);
 Promise.all([
   loadGLTF('./glTF/MetalRoughSpheres.gltf'),
   RGBELoader.load('./textures/equirectangular/pedestrian_overpass_1k.hdr'),
-]).then(([gltf, texture]) => {
+]).then(([gltf, hdrTexture]) => {
   const glTFRenderer = new GLTFRenderer(gltf, gl);
 
+  function setViewport(w, h) {
+    gl.canvas.width = w;
+    gl.canvas.height = h;
+    gl.viewport(0, 0, w, h);
+  }
+  setViewport(innerWidth * devicePixelRatio, innerHeight * devicePixelRatio);
+
   glTFRenderer.setProjection(toRad(60), innerWidth / innerHeight, 1, 100);
-  glTFRenderer.setViewport(innerWidth * devicePixelRatio, innerHeight * devicePixelRatio);
   glTFRenderer.setAmbientLight(ambientLightColor, ambientLightIntensity);
   glTFRenderer.setDirectionalLight(
     directionalLightColor,
@@ -62,7 +66,7 @@ Promise.all([
   const cubeTexture = gl.createTexture();
 
   function renderFBO() {
-    const CubeRenderer = new EquirectangularToCubeMapRenderer(texture, gl);
+    const CubeRenderer = new EquirectangularToCubeMapRenderer(hdrTexture, gl);
     CubeRenderer.setProjection(toRad(90), 1, 0.1, 10);
 
     const cubeMatrix = new Matrix4();
@@ -127,8 +131,8 @@ Promise.all([
   let rotateZ = 0;
   let startTime = performance.now();
 
-  gl.enable(gl.DEPTH_TEST);
-  gl.depthFunc(gl.LEQUAL);
+  GLContext.states.setDepthTest(true);
+  GLContext.states.setDepthFunc(gl.LEQUAL);
   renderFBO();
 
   const render = () => {
@@ -137,8 +141,9 @@ Promise.all([
 
     modelQuaternion.setFromEuler([rotateZ, rotateZ, rotateZ]);
     modelMatrix.compose(modelPosition, modelQuaternion, modelScale);
+    GLContext.states.setCullFace(true);
     glTFRenderer.renderScene(gltf.scene, modelMatrix);
-
+    GLContext.states.setCullFace(false);
     skyboxRenderer.renderCube(modelMatrix);
 
     if (performance.now() - startTime < 3000) requestAnimationFrame(render);

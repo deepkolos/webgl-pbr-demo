@@ -2,6 +2,12 @@ import { GLContext } from './GLContext.js';
 import { GLTextures } from './GLTextures.js';
 
 export class GLShader {
+  /**
+   * 
+   * @param {string} vert 
+   * @param {string} frag 
+   * @param {any} states 
+   */
   constructor(vert, frag, states) {
     this.vertSource = vert;
     this.fragSource = frag;
@@ -162,7 +168,8 @@ export class GLShader {
   }
 
   use() {
-    GLContext.gl.useProgram(this.glProg);
+    // GLContext.gl.useProgram(this.glProg);
+    GLContext.states.setCurrentProgram(this.glProg);
   }
 }
 

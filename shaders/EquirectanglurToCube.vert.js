@@ -8,5 +8,5 @@ varying vec3 v_localPosition;
 
 void main() {
   v_localPosition = position;  
-  gl_Position =  projection * modelToView * vec4(position, 1.0);
+  gl_Position     = projection * modelToView * vec4(position, 1.0);
 }`;

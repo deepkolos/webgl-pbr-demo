@@ -87,25 +87,26 @@ vec4 sRGBToLinear( in vec4 value ) {
 
 void main() {
   // vec3 baseColor = texture2D(baseColorTexture, v_uv).xyz;
-  vec3 baseColor = sRGBToLinear(texture2D(baseColorTexture, v_uv)).xyz;
+  vec3 baseColor              = sRGBToLinear(texture2D(baseColorTexture, v_uv)).xyz;
   vec4 metallicRoughnessColor = texture2D(metallicRoughnessTexture, v_uv);
-  float metallic = metallicRoughnessColor.z * metallicFactor;
-	float roughness = metallicRoughnessColor.y * roughnessFactor;
+  float metallic              = metallicRoughnessColor.z * metallicFactor;
+	float roughness             = metallicRoughnessColor.y * roughnessFactor;
 
   vec3 F0 = mix(vec3(0.04, 0.04, 0.04), baseColor, metallic);
 
-  vec3 N = normalize(v_worldNormal);
-  vec3 V = normalize(cameraWorldPosition - v_worldPosition);
-  vec3 R = reflect(-V, N);
+  vec3 N  = normalize(v_worldNormal);
+  vec3 V  = normalize(cameraWorldPosition - v_worldPosition);
+  vec3 R  = reflect(-V, N);
 
 	vec3 La = vec3(0.0, 0.0, 0.0);
 	vec3 Lo = vec3(0.0, 0.0, 0.0);
 
   La = baseColor * ambientLightColor * ambientLightIntensity;
 
-  vec3 L = normalize(directionalLightDirection);
+  vec3 L    = normalize(directionalLightDirection);
   float NoL = min(dot(N, L), 1.0);
-  vec3 En = directionalLightColor * directionalLightIntensity * NoL;
+  vec3 En   = directionalLightColor * directionalLightIntensity * NoL;
+
   Lo = BRDF(L, V, N, F0, metallic, roughness, baseColor) * En;
 
   gl_FragColor = LinearTosRGB(vec4(La + Lo, 1));
