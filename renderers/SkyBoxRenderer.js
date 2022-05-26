@@ -24,9 +24,7 @@ export class BackgroundRenderer {
     this.glCubeBuffer = glCubeBuffer;
   }
 
-  setProjection(fov, aspect, near, far) {
-    const projection = new Matrix4();
-    projection.perspective(fov, aspect, near, far);
+  setProjection(projection) {
     this.skyBoxShader.setUniform('projection', projection);
   }
 

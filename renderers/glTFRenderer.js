@@ -4,7 +4,6 @@ import { fragSource } from '../shaders/PBR.frag.js';
 import { GLContext } from '../GLContext.js';
 import { GLShader } from '../GLShader.js';
 import { GLTextures } from '../GLTextures.js';
-import { GLStates } from '../GLStates.js';
 
 const WEBGL_TYPE_SIZES = {
   SCALAR: 1,
@@ -30,9 +29,7 @@ export class GLTFRenderer {
   }
 
   // 相机提供
-  setProjection(fov, aspect, near, far) {
-    const projection = new Matrix4();
-    projection.perspective(fov, aspect, near, far);
+  setProjection(projection) {
     this.PBRShader.setUniform('projection', projection);
   }
   /**
@@ -59,6 +56,10 @@ export class GLTFRenderer {
   setMetallicRoughness(metallicFactor, roughnessFactor) {
     this.PBRShader.setUniform('roughnessFactor', roughnessFactor);
     this.PBRShader.setUniform('metallicFactor', metallicFactor);
+  }
+
+  setIrradianceMap(irradianceMap) {
+    this.irradianceMap = irradianceMap;
   }
 
   uploadTexture(textureIndex, uniformName) {
@@ -168,6 +169,7 @@ export class GLTFRenderer {
         materialDef.pbrMetallicRoughness.metallicRoughnessTexture.index,
         'metallicRoughnessTexture',
       );
+      this.PBRShader.setUniform('irradianceMap', this.irradianceMap);
 
       gl.drawElements(
         primitiveDef.mode,

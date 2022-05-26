@@ -46,9 +46,7 @@ export class EquirectangularToCubeMapRenderer {
     this.glCubeTexture = glCubeTexture;
   }
 
-  setProjection(fov, aspect, near, far) {
-    const projection = new Matrix4();
-    projection.perspective(fov, aspect, near, far);
+  setProjection(projection) {
     this.cubeShader.setUniform('projection', projection);
   }
 

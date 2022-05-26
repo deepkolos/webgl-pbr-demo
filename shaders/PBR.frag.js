@@ -15,6 +15,8 @@ uniform vec3 directionalLightDirection;
 
 uniform vec3 cameraWorldPosition;
 
+uniform samplerCube irradianceMap;
+
 varying vec3 v_worldPosition;
 varying vec3 v_worldNormal;
 varying vec2 v_uv;
@@ -100,8 +102,13 @@ void main() {
 
 	vec3 La = vec3(0.0, 0.0, 0.0);
 	vec3 Lo = vec3(0.0, 0.0, 0.0);
-
+	
   La = baseColor * ambientLightColor * ambientLightIntensity;
+
+	vec3 kS = F_Schlick(max(dot(N, V), 0.0), F0);
+	vec3 kD = 1.0 - kS;
+	kD *= 1.0 - metallic;	  
+	La = kD * baseColor * sRGBToLinear(textureCube(irradianceMap, R)).rgb;
 
   vec3 L    = normalize(directionalLightDirection);
   float NoL = min(dot(N, L), 1.0);
@@ -110,5 +117,8 @@ void main() {
   Lo = BRDF(L, V, N, F0, metallic, roughness, baseColor) * En;
 
   gl_FragColor = LinearTosRGB(vec4(La + Lo, 1));
+	// gl_FragColor = vec4(N, 1);
+  // gl_FragColor = LinearTosRGB(textureCube(irradianceMap, N));
+
 }
 `;
